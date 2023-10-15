@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: ediaggregatorbatch    #service name
+server:
+  port: 9310
+management:
+  endpoint:
+    health:
+      enabled: true
+      show-details: always

@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ediaggregatorbatch
+  labels:
+    app: ediaggregatorbatch  
+spec:
+  replicas: replace_replicas
+  selector:
+    matchLabels:
+      app: ediaggregatorbatch
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: ediaggregatorbatch        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ediaggregatorbatch
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - image: image_to_be_deployed # image path
+        imagePullPolicy: Always
+        name: ediaggregatorbatch
+        ports:
+        - containerPort: 9310
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 9310
+          initialDelaySeconds: 120
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 9310
+          initialDelaySeconds: 60
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "2"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        env:
+          - name: ENV_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: replace_logical_env.host.name
+          - name: JAEGER_COLLECTOR_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: jaeger.collector.url
+          - name: BOOTSTRAP_SERVER_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: replace_logical_env.kafka.bootstrap.server.url
+          - name: KAFKA_SECURITY_PROTOCOL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: kafka.security.protocol
+          - name : SSL_TRUSTSTORE_LOCATION
+            value: /etc/certs/kafka/kafka.broker.keystore.jks          
+          - name : SSL_TRUSTSTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: kafka.broker.certs
+                key: keystore.pwd
+          - name: KAFKA_TOPIC_OUTBOUND
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: replace_logical_env.kafka.topic.outbound         
+          - name: APIGATEWAYANALYTICS_KAFKA_TOPIC
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: replace_logical_env.kafka.analytic.topic        
+          
+          - name: EDICOREDATA_UPDATEEDIDOCPROCESSEDFLAG_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: ediaggregatorbatch.updateEDIDocProcessedFlagUrl
+          - name: EDICOREDATA_GETGROUPEDEDIDOCS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: ediaggregatorbatch.getGroupedEDIDocsUrl
+          - name: EDICONFIG_GETBYATTRPATTERN_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ediaggregatorbatch-configmap
+                key: ediaggregatorbatch.getEdiConfigByAttrPatternUrl
+        volumeMounts:
+          - mountPath: /etc/certs/kafka
+            name: certs
+            readOnly: true
+
+      volumes:
+        - name: certs
+          secret:
+            secretName: kafka.broker.certs
+          
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ediaggregatorbatch
+  labels:
+    app: ediaggregatorbatch
+    k8s-app: ediaggregatorbatch
+spec:
+  selector:
+    app: ediaggregatorbatch
+  type: ClusterIP
+  ports:
+  - port: 9310
+    name: web
+    targetPort: 9310
+---
+apiVersion: autoscaling/v2 
+kind: HorizontalPodAutoscaler 
+metadata: 
+  name: ediaggregatorbatch
+spec: 
+  maxReplicas: replace_maxReplicas
+  minReplicas: replace_maxReplicas
+  scaleTargetRef: 
+    apiVersion: apps/v1 
+    kind: Deployment 
+    name: ediaggregatorbatch
+  metrics: 
+  - type: Resource 
+    resource: 
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

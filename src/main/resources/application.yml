@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: ediaggregatorbatch
+  codec:
+    max-in-memory-size: 10MB
+  zipkin:
+    base-url: ${JAEGER_COLLECTOR_URL}
+    service:
+      name: ediaggregatorbatch
+    enabled: true 
+  sleuth:
+    opentracing:
+      enabled: true   
+    trace-id128: true
+    sampler:
+      probability: 1.0
+      
+server:
+  port: 9310
+management:
+  security:
+    enabled: false  #disable the spring security on the management endpoints like /env, /refresh etc.
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  endpoints:
+    web:
+      exposure:
+        include: info,health,prometheus,env,httptrace,loggers
+
+logging:
+  level:
+    ROOT: ERROR
+    com.atd.microservices.core.ediaggregatorbatch: DEBUG
+    reactor.netty.http.client: DEBUG
+
+apigateway:
+  url: '${APIGATEWAY_URL}'
+

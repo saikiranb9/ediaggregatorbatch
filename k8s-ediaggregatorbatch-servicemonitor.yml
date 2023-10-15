@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ediaggregatorbatch
+  namespace: monitoring
+  labels:
+    k8s-app: ediaggregatorbatch
+spec:
+  jobLabel: k8s-app
+  endpoints:
+  - path: /actuator/prometheus
+    port: web
+    interval: 1s
+    honorLabels: true
+  selector:
+    matchLabels:
+      k8s-app: ediaggregatorbatch
+  namespaceSelector:
+    matchNames:
+    - edi-platform
